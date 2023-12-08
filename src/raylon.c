@@ -16,7 +16,7 @@
 
 #define FONTS 2
 #define FONT_SPACING_NORMAL 1
-#define FONT_SIZE 28
+#define FONT_SIZE 18
 #define W 1920
 #define H 1080
 #define FPS 144
@@ -43,24 +43,53 @@ void UpdateCameraProFPS(Camera *camera, double deltaTime, int velocity) {
                   GetMouseWheelMove() * 2.0f);
 }
 
+typedef enum {
+    RUNNING_GAME,
+    PAUSED,
+} StatusGlobalGame;
+
 typedef struct {
   bool visible;
   Texture icon;
   Vector2 pos;
   Vector2 last_pos;
-} Cursor;
+} CursorGame;
+
+typedef struct {
+    Font font;
+    float font_line_spc;
+    int font_spc;
+    int size;
+} FontGame;
+
+static struct {
+    float text_box_margin;
+} GuiGameStyle = {5.0} ;
+
+
+void GuiGameTextBox(const char* display_text, const char* text, Vector2 pos, Font font, int font_spacing, Color color){
+    SetTextLineSpacing(font.baseSize * 1.16);
+    Vector2 ui_b = MeasureTextEx(font, text, font.baseSize , font_spacing);
+    /* DrawTextureRec(Texture2D texture, Rectangle source,  */
+    DrawRectangle(pos.x - GuiGameStyle.text_box_margin,
+                  pos.y - GuiGameStyle.text_box_margin,
+                  ui_b.x + (GuiGameStyle.text_box_margin * 2),
+                  ui_b.y + (GuiGameStyle.text_box_margin * 2),
+                  color);
+
+    Color color_text = WHITE; // fixed_for_now
+    DrawTextEx(font, display_text, pos, font.baseSize, font_spacing, color_text);
+};
 
 int main(void) {
   char *window_title = "Raylon - running";
   InitWindow(W, H, window_title);
-  /* SetTargetFPS(FPS); */
   bool show_mouse = true;
+  bool fps_cap = true;
 
   Font fonts[FONTS] = { 0 };
   fonts[0] = LoadFontEx("fonts/mono-bold.ttf", FONT_SIZE, NULL, 0);
   fonts[1] = LoadFontEx("fonts/alagard.ttf", FONT_SIZE, NULL, 0);
-  /* SetTextureFilter(fonts[0].texture, TEXTURE_FILTER_POINT); */
-  /* SetTextureFilter(fonts[1].texture, TEXTURE_FILTER_POINT); */
 
   CameraMode camera_mode = CAMERA_FIRST_PERSON;
 
@@ -90,15 +119,10 @@ int main(void) {
 
   Shader shader = LoadShader(TextFormat("resources/shaders/glsl%i/lighting.vs", GLSL_VERSION),
                              TextFormat("resources/shaders/glsl%i/lighting.fs", GLSL_VERSION));
-  Shader shader_fisheye = LoadShader(0, TextFormat("resources/shaders/glsl%i/fisheye.fs", GLSL_VERSION));
-  Shader shader_pixelizer = LoadShader(0, TextFormat("resources/shaders/glsl%i/pixelizer.fs", GLSL_VERSION));
-
-  Vector2 last_mouse_pos = { 0, 0 };
 
   Vector3 cubeSize = { 4.0f, 4.0f, 4.0f };
   Model cube = LoadModelFromMesh(GenMeshCube(cubeSize.x, cubeSize.y, cubeSize.z));
   Texture2D texture = LoadTexture("textures/wall.png");
-  Texture2D atlas = LoadTexture("textures/atlas.png");
   Texture2D cross = LoadTexture("textures/crosshair.png");
   cube.materials[0].shader = shader;
   SetMaterialTexture(&cube.materials[0], MATERIAL_MAP_DIFFUSE, texture); // Set model material map texture
@@ -114,7 +138,6 @@ int main(void) {
   float sphere_step_x = 0.1;
   int velocity = 80;
 
-  bool fps_cap = true;
   if (fps_cap) {
     SetTargetFPS(FPS);
   } else {
@@ -124,12 +147,6 @@ int main(void) {
   Image image = LoadImage("textures/map01.png");
   ImageFormat(&image, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
   ImageColorInvert(&image);
-
-  Mesh map_mesh = GenMeshCubicmap(image, (Vector3){1.0, 2.0, 1.0});
-  Model map = LoadModelFromMesh(map_mesh);
-  SetMaterialTexture(&map.materials[0], MATERIAL_MAP_DIFFUSE, texture); // Set model material map texture
-  map.materials[0].shader = shader;
-  Vector3 mapPosition = { -16.0f, 0.0f, -8.0f };
 
   while (!WindowShouldClose()) {
     // Pack entity + colisions settings;
@@ -153,8 +170,6 @@ int main(void) {
     BeginDrawing();
     ClearBackground(BLACK);
 
-    DrawTexture(cross, W / 2 - cross.width / 2, H / 2 - cross.height / 2, WHITE);
-
     BeginMode3D(camera);
     /* DrawPlane((Vector3){ 0.0f, 0.0f, 0.0f }, (Vector2){ 32.0f, 32.0f }, Fade(LIGHTGRAY, 0.3)); // Draw ground */
     DrawCubeWires((Vector3){ 0.0, 2.0, 0.0 }, 4.0f, 4.0f, 4.0f, MAROON);
@@ -170,8 +185,6 @@ int main(void) {
         DrawModel(cube, cubePosition, 1.0, WHITE);
     }
 
-    DrawModel(map, mapPosition, 3.0f, WHITE);
-
     EndMode3D();
 
     // zoom
@@ -183,7 +196,7 @@ int main(void) {
     // update only
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
       UpdateCamera(&camera, camera_mode);
-      UpdateCameraProFPS(&camera, GetFrameTime(), velocity);
+      /* UpdateCameraProFPS(&camera, GetFrameTime(), velocity); */
       HideCursor();
       SetMousePosition(W / 2, H / 2);
     }
@@ -207,32 +220,16 @@ int main(void) {
     }else{
       p += 1;
     }
-    SetTextLineSpacing(FONT_SIZE);
 
-    Vector2 ui_b = MeasureTextEx(fonts[1], message, fonts[1].baseSize, FONT_SPACING_NORMAL);
-    DrawRectangle(30, 30, ui_b.x, ui_b.y, Fade(BLACK, 0.8));
-    DrawTextEx(fonts[1], TextSubtext(message, 0, p), (Vector2){ 30, 30 }, fonts[1].baseSize, FONT_SPACING_NORMAL, WHITE);
+    GuiGameTextBox(TextSubtext(message, 0, p), message, (Vector2){30, 30}, fonts[1], FONT_SPACING_NORMAL, Fade(BLUE, 0.8));
+    // if(GuiGameButton(const char* text, Retangle rect, Color color) if clicked... etc
+    // GuiGameSelectButton(bool* status, const char* text, Retangle rect, Color color)
+    GuiGameTextBox(TextFormat("Value %f", actual_sphere.x), "Value xxxxxxx", (Vector2){30, 600}, fonts[1], FONT_SPACING_NORMAL, RED);
+    /* GuiGameSliderBar((Rectangle){ 30, 730, 80, 10 }, "0", "4.0", &sphere_r, 0.0, 4.0); */
 
-    // my gui
-    // if(Ggui_Button(Rectangle bounds, const char *text, enable)) if clicked... etc
-
-    //gui
-    GuiSliderBar((Rectangle){ 40, 400, 80, 10 }, "0", "4.0", &sphere_r, 0.0, 4.0);
-    DrawTextEx(fonts[1], TextFormat("Value %f", sphere.x), (Vector2){ 30, 420 }, fonts[1].baseSize, FONT_SPACING_NORMAL, RED);
-
-    // fps
-    if (IsKeyPressed(KEY_F)) {
-      fps_cap = !fps_cap;
-      if (fps_cap) {
-        SetTargetFPS(FPS);
-      } else {
-        SetTargetFPS(0);
-      }
-    }
-
-    DrawTextEx(fonts[1], TextFormat("FPS Cap: %b", fps_cap), (Vector2){ 30, 440 }, fonts[1].baseSize, FONT_SPACING_NORMAL, RED);
-    DrawTextEx(fonts[1], TextFormat("Time: %f", GetFrameTime()), (Vector2){ 30, 460 }, fonts[1].baseSize, FONT_SPACING_NORMAL, RED);
     DrawFPS(0, 0);
+    DrawTexture(cross, W / 2 - cross.width / 2, H / 2 - cross.height / 2, WHITE); // cross
+
     EndDrawing();
   }
 
