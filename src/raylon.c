@@ -120,12 +120,13 @@ int main(void) {
   Shader shader = LoadShader(TextFormat("resources/shaders/glsl%i/lighting.vs", GLSL_VERSION),
                              TextFormat("resources/shaders/glsl%i/lighting.fs", GLSL_VERSION));
 
-  Vector3 cubeSize = { 4.0f, 4.0f, 4.0f };
+  Vector3 cubeSize = { 2.0f, 2.0f, 2.0f };
   Model cube = LoadModelFromMesh(GenMeshCube(cubeSize.x, cubeSize.y, cubeSize.z));
-  Texture2D texture = LoadTexture("textures/wall.png");
-  Texture2D cross = LoadTexture("textures/crosshair.png");
   cube.materials[0].shader = shader;
+  Texture2D texture = LoadTexture("textures/wall.png");
   SetMaterialTexture(&cube.materials[0], MATERIAL_MAP_DIFFUSE, texture); // Set model material map texture
+
+  Texture2D cross = LoadTexture("textures/crosshair.png");
   Vector3 cubePosition = { -5.0f, 2.0f, 0.0f };
 
   Ray ray = { 0 }; // Picking line ray
@@ -148,6 +149,7 @@ int main(void) {
   ImageFormat(&image, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
   ImageColorInvert(&image);
 
+  Texture heroin = LoadTexture("textures/heroin.png");
   while (!WindowShouldClose()) {
     // Pack entity + colisions settings;
     ray = GetMouseRay(GetMousePosition(), camera);
@@ -182,8 +184,12 @@ int main(void) {
     if (collision_box.hit) {
       DrawModelWiresEx(cube, cubePosition, (Vector3){1, 1, 1}, 0, (Vector3){ 1, 1, 1 }, WHITE);
     } else {
-        DrawModel(cube, cubePosition, 1.0, WHITE);
+      DrawModel(cube, cubePosition, 1.0, WHITE);
     }
+
+    // biliboard
+    /* DrawBillboard(camera, heroin, (Vector3){4.0, 0.0, 0.0}, 3.0f, WHITE); */
+    DrawBillboardPro(camera, heroin, (Rectangle){0, 0, heroin.width, heroin.height}, (Vector3){6.0, 1.5, 0}, (Vector3){0, 1.0, 0}, (Vector2){4.0f, 4.0f}, (Vector2){0.0}, 0.0f, WHITE);
 
     EndMode3D();
 
