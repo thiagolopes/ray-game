@@ -6,21 +6,14 @@
 
 #define RLIGHTS_IMPLEMENTATION
 #if defined(PLATFORM_DESKTOP)
-#define GLSL_VERSION 330
-#else // PLATFORM_ANDROID, PLATFORM_WEB
-#define GLSL_VERSION 100
+  #define GLSL_VERSION 330
+#else // To: PLATFORM_ANDROID, PLATFORM_WEB
+  #define GLSL_VERSION 100
 #endif
 
-#define RAYGUI_IMPLEMENTATION
-#include "raygui.h"
-
-#define FONTS 2
-#define FONT_SPACING_NORMAL 1
-#define FONT_SIZE 18
+#define FONTS 10
 #define W 1920
 #define H 1080
-#define FPS 144
-
 
 void UpdateCameraProFPS(Camera *camera, double deltaTime, int velocity) {
   // Update camera movement/rotation
@@ -57,29 +50,68 @@ typedef struct {
 
 typedef struct {
     Font font;
-    float font_line_spc;
-    int font_spc;
+    float line_spc;
+    int letter_spc;
     int size;
 } FontGame;
 
+#define FONT_SPACE_RATIO 1.14
+#define FONT_SPACE 1
+FontGame LoadFontGame(const char* path, int size){
+    float line_spc  = size * FONT_SPACE_RATIO;
+    Font font = LoadFontEx(path, size, NULL, 0);
+
+    return (FontGame){font, line_spc, FONT_SPACE, size};
+}
+
 static struct {
     float text_box_margin;
-} GuiGameStyle = {5.0} ;
+    float text_box_border;
+} GuiGameStyle = {5.0f, 3.0f} ;
 
+void GuiGameTextBox(const char* display_text, const char* text, Vector2 pos, FontGame font, Color color, Color color_text){
+    SetTextLineSpacing(font.line_spc);
+    Vector2 bg_size = MeasureTextEx(font.font, text, font.size , font.letter_spc);
+    Rectangle bg = {pos.x - GuiGameStyle.text_box_margin,
+                    pos.y - GuiGameStyle.text_box_margin,
+                    bg_size.x + (GuiGameStyle.text_box_margin * 2),
+                    bg_size.y + (GuiGameStyle.text_box_margin * 2)};
 
-void GuiGameTextBox(const char* display_text, const char* text, Vector2 pos, Font font, int font_spacing, Color color){
-    SetTextLineSpacing(font.baseSize * 1.16);
-    Vector2 ui_b = MeasureTextEx(font, text, font.baseSize , font_spacing);
-    /* DrawTextureRec(Texture2D texture, Rectangle source,  */
-    DrawRectangle(pos.x - GuiGameStyle.text_box_margin,
-                  pos.y - GuiGameStyle.text_box_margin,
-                  ui_b.x + (GuiGameStyle.text_box_margin * 2),
-                  ui_b.y + (GuiGameStyle.text_box_margin * 2),
-                  color);
-
-    Color color_text = WHITE; // fixed_for_now
-    DrawTextEx(font, display_text, pos, font.baseSize, font_spacing, color_text);
+    // border
+    DrawRectangle(bg.x - GuiGameStyle.text_box_border , bg.y - GuiGameStyle.text_box_border,
+                  bg.width + (GuiGameStyle.text_box_border * 2), bg.height + (GuiGameStyle.text_box_border * 2),
+                  Fade(color, 0.4));
+    // text
+    DrawRectangle(bg.x, bg.y, bg.width, bg.height, color);
+    DrawTextEx(font.font, display_text, pos, font.size, font.letter_spc, color_text);
 };
+
+bool GuiGameButton(const char* text, FontGame font, Vector2 pos, Color color, Color color_text){
+    SetTextLineSpacing(font.line_spc);
+    Vector2 bg_size = MeasureTextEx(font.font, text, font.size , font.letter_spc);
+    Rectangle bg = {pos.x - GuiGameStyle.text_box_margin,
+                    pos.y - GuiGameStyle.text_box_margin,
+                    bg_size.x + (GuiGameStyle.text_box_margin * 2),
+                    bg_size.y + (GuiGameStyle.text_box_margin * 2)};
+
+    bool is_hover = CheckCollisionPointRec(GetMousePosition(), bg);
+    if (is_hover){
+        color = ColorBrightness(color, 0.4);
+    }
+
+    // border
+    DrawRectangle(bg.x - GuiGameStyle.text_box_border , bg.y - GuiGameStyle.text_box_border,
+                  bg.width + (GuiGameStyle.text_box_border * 2), bg.height + (GuiGameStyle.text_box_border * 2),
+                  Fade(color, 0.4));
+    // button
+    DrawRectangle(bg.x, bg.y, bg.width, bg.height, color);
+    DrawTextEx(font.font, text, pos, font.size, font.letter_spc, color_text);
+
+    if (is_hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+        return true;
+    }
+    return false;
+}
 
 int main(void) {
   char *window_title = "Raylon - running";
@@ -87,11 +119,11 @@ int main(void) {
   bool show_mouse = true;
   bool fps_cap = true;
 
-  Font fonts[FONTS] = { 0 };
-  fonts[0] = LoadFontEx("fonts/mono-bold.ttf", FONT_SIZE, NULL, 0);
-  fonts[1] = LoadFontEx("fonts/alagard.ttf", FONT_SIZE, NULL, 0);
+  FontGame fonts[FONTS] = { 0 };
+  fonts[0] = LoadFontGame("fonts/mono-bold.ttf", 20);
+  fonts[1] = LoadFontGame("fonts/alagard.ttf", 20);
 
-  CameraMode camera_mode = CAMERA_FIRST_PERSON;
+  CameraMode camera_mode = CAMERA_FREE;
 
   unsigned int p = 0;
   char *message = "Life isn't just about passing on your genes. \n"
@@ -139,8 +171,10 @@ int main(void) {
   float sphere_step_x = 0.1;
   int velocity = 80;
 
+  int monitor = GetCurrentMonitor();
+  int fps = GetMonitorRefreshRate(monitor);
   if (fps_cap) {
-    SetTargetFPS(FPS);
+    SetTargetFPS(fps);
   } else {
     SetTargetFPS(0);
   }
@@ -150,6 +184,7 @@ int main(void) {
   ImageColorInvert(&image);
 
   Texture heroin = LoadTexture("textures/heroin.png");
+
   while (!WindowShouldClose()) {
     // Pack entity + colisions settings;
     ray = GetMouseRay(GetMousePosition(), camera);
@@ -181,10 +216,10 @@ int main(void) {
       DrawSphere(actual_sphere, sphere_r, MAGENTA);
     }
 
+    DrawModel(cube, cubePosition, 1.0, WHITE);
     if (collision_box.hit) {
-      DrawModelWiresEx(cube, cubePosition, (Vector3){1, 1, 1}, 0, (Vector3){ 1, 1, 1 }, WHITE);
+        // colide
     } else {
-      DrawModel(cube, cubePosition, 1.0, WHITE);
     }
 
     // biliboard
@@ -221,16 +256,17 @@ int main(void) {
       p = 0;
     }
     if (IsKeyDown(KEY_SPACE) == 1) {
-      DrawTextEx(fonts[1], "Space pressed", (Vector2){ W - 500, H - 100 }, fonts[1].baseSize, FONT_SPACING_NORMAL, Fade(MAGENTA, 0.4));
+      GuiGameTextBox("Space pressed", "Space pressed", (Vector2){ 30, 740} , fonts[1], BLANK, MAGENTA);
       p += 4;
     }else{
       p += 1;
     }
 
-    GuiGameTextBox(TextSubtext(message, 0, p), message, (Vector2){30, 30}, fonts[1], FONT_SPACING_NORMAL, Fade(BLUE, 0.8));
-    // if(GuiGameButton(const char* text, Retangle rect, Color color) if clicked... etc
-    // GuiGameSelectButton(bool* status, const char* text, Retangle rect, Color color)
-    GuiGameTextBox(TextFormat("Value %f", actual_sphere.x), "Value xxxxxxx", (Vector2){30, 600}, fonts[1], FONT_SPACING_NORMAL, RED);
+    GuiGameTextBox(TextSubtext(message, 0, p), message, (Vector2){30, 30}, fonts[1], BLUE, WHITE);
+    if (GuiGameButton("Click me!!", fonts[1], (Vector2) {30, 700}, GOLD, BLACK)){
+        printf("clicked!\n");
+    }
+    GuiGameTextBox(TextFormat("Value %f", actual_sphere.x), "Value xxxxxxx", (Vector2){30, 600}, fonts[1], RED, WHITE);
     /* GuiGameSliderBar((Rectangle){ 30, 730, 80, 10 }, "0", "4.0", &sphere_r, 0.0, 4.0); */
 
     DrawFPS(0, 0);
@@ -241,7 +277,7 @@ int main(void) {
 
   // shutdown
   for (size_t i = 0; i < FONTS; i++) {
-    UnloadFont(fonts[i]);
+    UnloadFont(fonts[i].font);
   }
   CloseWindow();
 
