@@ -184,8 +184,8 @@ void UpdateCameraToOrtho(CameraGame* camera, Camera data) {
     camera->camera.position = data.position;
     camera->camera.target = data.target;
     camera->camera.up = data.up;
-    camera->camera.projection = CAMERA_ORTHOGRAPHIC;
     camera->camera.fovy = data.fovy;
+    camera->camera.projection = data.projection;
 }
 
 FontGame DEBUG_FONT;
@@ -243,6 +243,8 @@ int main(void) {
 
     int size = 4;
     Model wall = LoadModel("models/medieval01/wall.obj");
+    Model wallDoom = LoadModelFromMesh(wall.meshes[0]);
+    Model wallWolf = LoadModelFromMesh(wall.meshes[0]);
     Model wallFortified = LoadModel("models/medieval01/wallFortified.obj");
     Model wallFortifiedGate = LoadModel("models/medieval01/wallFortified_gate.obj");
     Model tower = LoadModel("models/medieval01/tower.obj");
@@ -261,6 +263,14 @@ int main(void) {
     SetTextureFilter(wallFortifiedGate.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_ANISOTROPIC_16X);
     SetTextureFilter(tower.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_ANISOTROPIC_16X);
     SetTextureFilter(floor.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_ANISOTROPIC_16X);
+
+    Texture2D doom = LoadTexture("textures/doom.png");
+    Texture2D wolf = LoadTexture("textures/wolf.png");
+    SetTextureFilter(doom, TEXTURE_FILTER_ANISOTROPIC_16X);
+    SetTextureFilter(wolf, TEXTURE_FILTER_ANISOTROPIC_16X);
+
+    wallDoom.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = doom;
+    wallWolf.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = wolf;
 
     // wall.materials[0].shader = shader;
     // floor.materials[0].shader = shader;
@@ -282,7 +292,7 @@ int main(void) {
     }
 
     Texture heroin = LoadTexture("textures/heroin.png");
-    Grid map = grid_load("src/map_01");
+    Grid map_file = grid_load("src/map_01");
 
     while (!WindowShouldClose()) {
 	if (IsKeyPressed(KEY_Z)){
@@ -306,16 +316,14 @@ int main(void) {
 	    // UpdateCameraProFPS(&camera, GetFrameTime(), velocity);
 	    SetMousePosition(W / 2, H / 2);
 	}
-	// Pack entity + colisions settings;
-	// ray = GetMouseRay(GetMousePosition(), camera_game.camera);
 
 	BeginDrawing();
 	ClearBackground(BLACK);
 	BeginMode3D(camera_game.camera);
 	// map
-	for (size_t x = 0; x < map.rows; x++){
-	    for (size_t y = 0; y < map.cols; y++){
-		Cel cel = map.cels[x][y];
+	for (size_t x = 0; x < map_file.rows; x++){
+	    for (size_t y = 0; y < map_file.cols; y++){
+		Cel cel = map_file.cels[x][y];
 		if (cel.raw_value == 0){
 		    DrawModel(floor, (Vector3){x * size, -0.2f, y * size}, size, WHITE);
 		} else if (cel.raw_value == 6) {
@@ -330,6 +338,10 @@ int main(void) {
 		} else if (cel.raw_value == 4){
 		    DrawModel(floor,(Vector3){x * size, -0.2f, y * size}, size, WHITE);
 		    DrawModel(tower, (Vector3){x * size, 0.0f, y * size}, size, WHITE);
+		} else if (cel.raw_value == 5){
+		    DrawModel(wallDoom, (Vector3){x * size, 0.0f, y * size}, size, WHITE);
+		} else if (cel.raw_value == 8){
+		    DrawModel(wallWolf, (Vector3){x * size, 0.0f, y * size}, size, WHITE);
 		} else {
 		    DrawModel(wall, (Vector3){x * size, 0.0f, y * size}, size, WHITE);
 		}
@@ -353,13 +365,13 @@ int main(void) {
 	    p += 1;
 	}
 
-	GuiGameSubTextBox(message, p, (Vector2){30, 30}, fonts[1], BLUE, WHITE);
-	if (GuiGameButton("Click me!!", fonts[1], (Vector2) {30, 700}, GOLD, BLACK)){
+	GuiGameSubTextBox(message, p, (Vector2){30, 30}, fonts[1], BROWN, WHITE);
+	if (GuiGameButton("Click me!!", fonts[1], (Vector2) {466, 373}, GOLD, BLACK)){
 	    p = 0;
 	}
 
+	GuiGameTextBox(TextFormat("Mouse Pos: %i %i", GetMouseX(), GetMouseY()), (Vector2){ 30, 820} , fonts[1], WHITE, MAGENTA);
 	// GuiGameSliderBar((Rectangle){ 30, 730, 80, 10 }, "0", "4.0", &sphere_r, 0.0, 4.0);
-
 
 	DebugCameraGame(&camera_game, (Vector2){30, 400});
 
@@ -371,9 +383,7 @@ int main(void) {
 	if (IsKeyUp(KEY_LEFT_SHIFT)) {
 	    DrawTexture(cursor, GetMouseX(), GetMouseY(), WHITE);
 	}
-
 	EndDrawing();
-
     }
 
     // shutdown
