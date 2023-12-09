@@ -205,6 +205,8 @@ int main(void) {
     char *window_title = "Raylon - running";
     SetConfigFlags(FLAG_MSAA_4X_HINT);  // Enable Multi Sampling Anti Aliasing 4x (if available)
     InitWindow(W, H, window_title);
+    HideCursor();
+
     bool show_mouse = true;
     bool fps_cap = true;
 
@@ -266,6 +268,7 @@ int main(void) {
     // light.materials[0].shader = shader;
 
     Texture2D cross = LoadTexture("textures/crosshair.png");
+    Texture2D cursor = LoadTexture("textures/cursor.png");
 
     // Ray ray = { 0 }; // Picking line ray
     // int velocity = 80;
@@ -301,13 +304,8 @@ int main(void) {
 	if (IsKeyDown(KEY_LEFT_SHIFT)) {
 	    UpdateCamera(&camera_game.camera, camera_game.active_mode);
 	    // UpdateCameraProFPS(&camera, GetFrameTime(), velocity);
-	    HideCursor();
 	    SetMousePosition(W / 2, H / 2);
 	}
-	if (IsKeyUp(KEY_LEFT_SHIFT)) {
-	    ShowCursor();
-	}
-
 	// Pack entity + colisions settings;
 	// ray = GetMouseRay(GetMousePosition(), camera_game.camera);
 
@@ -369,6 +367,11 @@ int main(void) {
 	if (camera_game.active_proj == CAMERA_PERSPECTIVE){
 	    DrawTexture(cross, W / 2 - cross.width / 2, H / 2 - cross.height / 2, WHITE); // cross
 	}
+
+	if (IsKeyUp(KEY_LEFT_SHIFT)) {
+	    DrawTexture(cursor, GetMouseX(), GetMouseY(), WHITE);
+	}
+
 	EndDrawing();
 
     }
