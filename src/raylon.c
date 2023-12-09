@@ -5,6 +5,9 @@
 #include "math.h"
 #include "map.h"
 
+#define RLIGHTS_IMPLEMENTATION
+#include "rlights.h"
+
 #define FONTS 10
 #define W 1920
 #define H 1080
@@ -146,14 +149,12 @@ int main(void) {
         "can. Building the future and keeping the past alive \n"
         "are one in the same thing.";
 
-    Camera3D camera = { 0 };
+    Camera3D camera = {0};
     camera.position = (Vector3){ 0.0, 2.0, 4.0f };
     camera.target = (Vector3){ 0.0, 2.0, 0.0 };
     camera.up = (Vector3){ 0.0, 1.0, 0.0 };
     camera.fovy = 45.0;
     camera.projection = CAMERA_PERSPECTIVE;
-
-    Shader shader = LoadShader("shader/lighting.vs", "shader/lighting.fs");
 
     int size = 4;
     Model wall = LoadModel("models/medieval01/wall.obj");
@@ -170,26 +171,18 @@ int main(void) {
     // wall.materials[0].shader = shader;
     // floor.materials[0].shader = shader;
     // column.materials[0].shader = shader;
+    // light.materials[0].shader = shader;
 
     Vector3 cubeSize = { 2.0f, 2.0f, 2.0f };
     Model cube = LoadModelFromMesh(GenMeshCube(cubeSize.x, cubeSize.y, cubeSize.z));
-    cube.materials[0].shader = shader;
+    // cube.materials[0].shader = shader;
 
     Texture2D texture = LoadTexture("textures/wall.png");
     SetMaterialTexture(&cube.materials[0], MATERIAL_MAP_DIFFUSE, texture); // Set model material map texture
 
     Texture2D cross = LoadTexture("textures/crosshair.png");
-    Vector3 cubePosition = { -5.0f, 2.0f, 0.0f };
 
     Ray ray = { 0 }; // Picking line ray
-    RayCollision collision_box = { 0 }; // Ray collision_box hit info
-    RayCollision collision_sphere = { 0 };
-
-    Vector3 sphere = { 4.0, 4.0, 4.0 };
-    Vector3 actual_sphere = { 4.0, 4.0, 4.0 };
-    float sphere_r = 2.0f;
-    float sphere_step_x = 0.1;
-
     int velocity = 80;
 
     int monitor = GetCurrentMonitor();
@@ -201,56 +194,29 @@ int main(void) {
     }
 
     Texture heroin = LoadTexture("textures/heroin.png");
-
     Grid map = grid_load("src/map_01");
 
     while (!WindowShouldClose()) {
-        // Pack entity + colisions settings;
-        ray = GetMouseRay(GetMousePosition(), camera);
-        collision_box = GetRayCollisionBox(ray, (BoundingBox){(Vector3){cubePosition.x - cubeSize.x / 2,
-                                                                        cubePosition.y - cubeSize.y / 2,
-                                                                        cubePosition.z - cubeSize.z / 2 },
-                                                              (Vector3){cubePosition.x + cubeSize.x / 2,
-                                                                        cubePosition.y + cubeSize.y / 2,
-                                                                        cubePosition.z + cubeSize.z / 2 } });
-        collision_sphere = GetRayCollisionSphere(ray, actual_sphere, sphere_r);
-
-        // if (!collision_sphere.hit) {
-        //     actual_sphere.y = sin(6.0 * GetTime() + (GetFrameTime() * velocity)) + sphere.y;
-        //     actual_sphere.x += sphere_step_x * (GetFrameTime() * velocity);
-        //     if (actual_sphere.x >= 10 || actual_sphere.x <= -10) {
-        //         sphere_step_x = -sphere_step_x;
-        //     }
-        // }
-
-        BeginDrawing();
-        ClearBackground(GRAY);
-
-        BeginMode3D(camera);
-        // DrawPlane((Vector3){ 0.0f, 0.0f, 0.0f }, (Vector2){ 32.0f, 32.0f }, Fade(LIGHTGRAY, 0.3)); // Draw ground
-
-        // DrawModel(wall,(Vector3){ 0.0, 2.0, 0.0 }, 1.0, WHITE);
-        // DrawModel(floor,(Vector3){ 4.0, 2.0, 0.0 }, 1.0, WHITE);
-        // DrawModel(column,(Vector3){ 4.0, 2.0, 2.0 }, 1.0, WHITE);
-
-        // if (collision_sphere.hit) {
-        //     DrawSphereWires(actual_sphere, sphere_r, 10, 30, MAGENTA);
-        // } else {
-        //     DrawSphere(actual_sphere, sphere_r, MAGENTA);
-        // }
-
-        // DrawModel(cube, cubePosition, 1.0, WHITE);
-        if (collision_box.hit) {
-            // colide
-        } else {
+        if (IsKeyPressed(KEY_LEFT_SHIFT)) {
+            show_mouse = !show_mouse;
+        }
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            UpdateCamera(&camera, camera_mode);
+            // UpdateCameraProFPS(&camera, GetFrameTime(), velocity);
+            HideCursor();
+            SetMousePosition(W / 2, H / 2);
+        }
+        if (IsKeyUp(KEY_LEFT_SHIFT)) {
+            ShowCursor();
         }
 
-        // biliboard
-        // DrawBillboard(camera, heroin, (Vector3){4.0, 0.0, 0.0}, 3.0f, WHITE);
-        DrawBillboardPro(camera, heroin, (Rectangle){0, 0, heroin.width, heroin.height}, (Vector3){37.0f, 2.0f, 13.0f}, (Vector3){0.0f, 1.0f, 0.0f}, (Vector2){4.0f, 4.0f}, (Vector2){0}, 0.0f, WHITE);
+        // Pack entity + colisions settings;
+        ray = GetMouseRay(GetMousePosition(), camera);
 
+        BeginDrawing();
+        ClearBackground(BLACK);
+        BeginMode3D(camera);
         // map
-
         for (size_t x = 0; x < map.rows; x++){
             for (size_t y = 0; y < map.cols; y++){
                 Cel cel = map.cels[x][y];
@@ -266,32 +232,11 @@ int main(void) {
             }
         }
 
+        // billboard
+        DrawBillboardPro(camera, heroin, (Rectangle){0, 0, heroin.width, heroin.height}, (Vector3){37.0f, 2.0f, 13.0f}, (Vector3){0.0f, 1.0f, 0.0f}, (Vector2){4.0f, 4.0f}, (Vector2){0}, 0.0f, WHITE);
         EndMode3D();
 
-        // zoom
-        float scroll = GetMouseWheelMove();
-        if (scroll) {
-            camera.fovy += scroll;
-        }
-
-        // update only
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            UpdateCamera(&camera, camera_mode);
-            // UpdateCameraProFPS(&camera, GetFrameTime(), velocity);
-            HideCursor();
-            SetMousePosition(W / 2, H / 2);
-        }
-
-        if (IsKeyPressed(KEY_LEFT_SHIFT)) {
-            show_mouse = !show_mouse;
-        }
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-        }
-        if (IsKeyUp(KEY_LEFT_SHIFT)) {
-            ShowCursor();
-        }
-
-        // text experiemt
+        // 2d draw
         if (IsKeyDown(KEY_SPACE) == 1) {
             GuiGameTextBox("Space pressed", "Space pressed", (Vector2){ 30, 740} , fonts[1], BLANK, MAGENTA);
             p += 4;
@@ -303,15 +248,13 @@ int main(void) {
         if (GuiGameButton("Click me!!", fonts[1], (Vector2) {30, 700}, GOLD, BLACK)){
             p = 0;
         }
-        GuiGameTextBox(TextFormat("Value %f", actual_sphere.x), "Value xxxxxxx", (Vector2){30, 600}, fonts[1], RED, WHITE);
-
         GuiGameTextBox(TextFormat("Pos: %.1f %.1f %.1f", camera.position.x, camera.position.y, camera.position.z), "Pos: xx.x xx.x x1x.x", (Vector2){30, 640}, fonts[1], DARKGREEN, WHITE);
         // GuiGameSliderBar((Rectangle){ 30, 730, 80, 10 }, "0", "4.0", &sphere_r, 0.0, 4.0);
 
         DrawFPS(0, 0);
         DrawTexture(cross, W / 2 - cross.width / 2, H / 2 - cross.height / 2, WHITE); // cross
-
         EndDrawing();
+
     }
 
     // shutdown
