@@ -23,15 +23,15 @@ void UpdateCameraProFPS(Camera *camera, double deltaTime, int velocity) {
     float left  = ((IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) * step) * moviment_delta;
 
     UpdateCameraPro(camera, (Vector3)
-                    {foward - backward,
-                     right - left,
-                     0.0f // Move up-down
-                    }, (Vector3){
-                        GetMouseDelta().x * 0.05f, // Rotation: yaw
-                        GetMouseDelta().y * 0.05f, // Rotation: pitch
-                        0.0f // Rotation: roll
-                    },
-                    GetMouseWheelMove() * 2.0f);
+		    {foward - backward,
+		     right - left,
+		     0.0f // Move up-down
+		    }, (Vector3){
+			GetMouseDelta().x * 0.05f, // Rotation: yaw
+			GetMouseDelta().y * 0.05f, // Rotation: pitch
+			0.0f // Rotation: roll
+		    },
+		    GetMouseWheelMove() * 2.0f);
 }
 
 typedef enum {
@@ -69,50 +69,136 @@ static struct {
     Sound* sound_click;
 } GuiGameStyle = {5.0f, 3.0f, NULL} ;
 
-void GuiGameTextBox(const char* display_text, const char* text, Vector2 pos, FontGame font, Color color, Color color_text){
+Vector2 GuiGameMeasureText(const char* text, FontGame font) {
     SetTextLineSpacing(font.line_spc);
-    Vector2 bg_size = MeasureTextEx(font.font, text, font.size , font.letter_spc);
-    Rectangle bg = {pos.x - GuiGameStyle.text_box_margin,
-                    pos.y - GuiGameStyle.text_box_margin,
-                    bg_size.x + (GuiGameStyle.text_box_margin * 2),
-                    bg_size.y + (GuiGameStyle.text_box_margin * 2)};
+    return MeasureTextEx(font.font, text, font.size , font.letter_spc);
+}
 
+void GuiGameTextBox(const char* text, Vector2 pos, FontGame font, Color color, Color color_text) {
+    Vector2 measure = GuiGameMeasureText(text, font);
+    Rectangle bg = {pos.x - GuiGameStyle.text_box_margin,
+	pos.y - GuiGameStyle.text_box_margin,
+	measure.x + (GuiGameStyle.text_box_margin * 2),
+	measure.y + (GuiGameStyle.text_box_margin * 2)};
     // border
     DrawRectangle(bg.x - GuiGameStyle.text_box_border , bg.y - GuiGameStyle.text_box_border,
-                  bg.width + (GuiGameStyle.text_box_border * 2), bg.height + (GuiGameStyle.text_box_border * 2),
-                  Fade(color, 0.4));
+		  bg.width + (GuiGameStyle.text_box_border * 2), bg.height + (GuiGameStyle.text_box_border * 2),
+		  Fade(color, 0.4));
     // text
     DrawRectangle(bg.x, bg.y, bg.width, bg.height, color);
-    DrawTextEx(font.font, display_text, pos, font.size, font.letter_spc, color_text);
+    DrawTextEx(font.font, text, (Vector2){pos.x, pos.y}, font.size, font.letter_spc, color_text);
 };
 
-bool GuiGameButton(const char* text, FontGame font, Vector2 pos, Color color, Color color_text){
+void GuiGameSubTextBox(const char* text, int position, Vector2 pos, FontGame font, Color color, Color color_text) {
+    Vector2 measure = GuiGameMeasureText(text, font);
+    Rectangle bg = {pos.x - GuiGameStyle.text_box_margin,
+	pos.y - GuiGameStyle.text_box_margin,
+	measure.x + (GuiGameStyle.text_box_margin * 2),
+	measure.y + (GuiGameStyle.text_box_margin * 2)};
+    // border
+    DrawRectangle(bg.x - GuiGameStyle.text_box_border , bg.y - GuiGameStyle.text_box_border,
+		  bg.width + (GuiGameStyle.text_box_border * 2), bg.height + (GuiGameStyle.text_box_border * 2),
+		  Fade(color, 0.4));
+    // text
+    DrawRectangle(bg.x, bg.y, bg.width, bg.height, color);
+    DrawTextEx(font.font, TextSubtext(text, 0, position), (Vector2){pos.x, pos.y}, font.size, font.letter_spc, color_text);
+};
+
+
+bool GuiGameButton(const char* text, FontGame font, Vector2 pos, Color color, Color color_text) {
     SetTextLineSpacing(font.line_spc);
     Vector2 bg_size = MeasureTextEx(font.font, text, font.size , font.letter_spc);
     Rectangle bg = {pos.x - GuiGameStyle.text_box_margin,
-                    pos.y - GuiGameStyle.text_box_margin,
-                    bg_size.x + (GuiGameStyle.text_box_margin * 2),
-                    bg_size.y + (GuiGameStyle.text_box_margin * 2)};
+	pos.y - GuiGameStyle.text_box_margin,
+	bg_size.x + (GuiGameStyle.text_box_margin * 2),
+	bg_size.y + (GuiGameStyle.text_box_margin * 2)};
 
     bool is_hover = CheckCollisionPointRec(GetMousePosition(), bg);
 
     // border
     DrawRectangle(bg.x - GuiGameStyle.text_box_border , bg.y - GuiGameStyle.text_box_border,
-                  bg.width + (GuiGameStyle.text_box_border * 2), bg.height + (GuiGameStyle.text_box_border * 2),
-                  Fade(color, 0.4));
+		  bg.width + (GuiGameStyle.text_box_border * 2), bg.height + (GuiGameStyle.text_box_border * 2),
+		  Fade(color, 0.4));
     // button
     if (is_hover){
-        color = ColorBrightness(color, 0.4);
+	color = ColorBrightness(color, 0.4);
     }
 
     DrawRectangle(bg.x, bg.y, bg.width, bg.height, color);
     DrawTextEx(font.font, text, pos, font.size, font.letter_spc, color_text);
 
     if (is_hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
-        PlaySound(*GuiGameStyle.sound_click);
-        return true;
+	PlaySound(*GuiGameStyle.sound_click);
+	return true;
     }
     return false;
+}
+
+typedef struct {
+    Camera3D camera;
+    CameraMode active_mode;
+    CameraProjection active_proj;
+} CameraGame;
+
+CameraGame NewCameraGamePerspective(void){
+    CameraGame camera_game = {0};
+    // Perspective
+    camera_game.camera.projection = CAMERA_PERSPECTIVE;
+    camera_game.active_mode = CAMERA_FREE;
+    camera_game.camera.position = (Vector3){0.0f, 2.0f, 10.0f};
+    camera_game.camera.target = (Vector3){ 0.0, 2.0, 0.0 };
+    camera_game.camera.up = (Vector3){ 0.0, 1.0, 0.0 };
+    camera_game.camera.fovy = 45.0;
+    return camera_game;
+}
+CameraGame NewCameraGameOrtho(void){
+    CameraGame camera_game = {0};
+    // Ortho
+    camera_game.camera.projection = CAMERA_ORTHOGRAPHIC;
+    camera_game.camera.position = (Vector3){ 0.0f, 2.0f, -100.0f };
+    camera_game.camera.target = (Vector3){ 0.0f, 2.0f, 0.0f };
+    camera_game.camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
+    camera_game.camera.fovy = 20.0f; // near plane width in CAMERA_ORTHOGRAPHIC
+    CameraYaw(&camera_game.camera, -135 * DEG2RAD, true);
+    CameraPitch(&camera_game.camera, -45 * DEG2RAD, true, true, false);
+
+    return camera_game;
+}
+
+void UpdateCameraToPerspective(CameraGame* camera, Camera data) {
+    camera->active_mode = CAMERA_FREE;
+    camera->active_proj = CAMERA_PERSPECTIVE;
+
+    camera->camera.position = data.position;
+    camera->camera.target = data.target;
+    camera->camera.up = data.up;
+    camera->camera.fovy = data.fovy;
+    camera->camera.projection = data.projection;
+}
+
+void UpdateCameraToOrtho(CameraGame* camera, Camera data) {
+    camera->active_mode = CAMERA_THIRD_PERSON;
+    camera->active_proj = CAMERA_ORTHOGRAPHIC;
+
+    // Note: The target distance is related to the render distance in the orthographic projection
+    camera->camera.position = data.position;
+    camera->camera.target = data.target;
+    camera->camera.up = data.up;
+    camera->camera.projection = CAMERA_ORTHOGRAPHIC;
+    camera->camera.fovy = data.fovy;
+}
+
+FontGame DEBUG_FONT;
+void DebugCameraGame(CameraGame *camera, Vector2 pos) {
+    GuiGameTextBox(TextFormat("Pos: %.1f %.1f %.1f",
+			      camera->camera.position.x,
+			      camera->camera.position.y,
+			      camera->camera.position.z),
+		   pos, DEBUG_FONT, DARKGREEN, WHITE);
+
+    GuiGameTextBox(TextFormat("FOV: %.1f", camera->camera.fovy), (Vector2){pos.x, pos.y + 40}, DEBUG_FONT, DARKGREEN, WHITE);
+    // add edition
+    // add title
 }
 
 int main(void) {
@@ -126,46 +212,52 @@ int main(void) {
     fonts[0] = LoadFontGame("fonts/mono-bold.ttf", 20);
     fonts[1] = LoadFontGame("fonts/alagard.ttf", 20);
 
+    DEBUG_FONT = fonts[1];
+
     InitAudioDevice();
     Sound click = LoadSound("sounds/click_004.ogg");
     SetSoundVolume(click, 1.0f);
     GuiGameStyle.sound_click = &click;
-    CameraMode camera_mode = CAMERA_FREE;
 
     unsigned int p = 0;
-    char *message = "Life isn't just about passing on your genes. \n"
-        "We can leave behind much more than just DNA. \n"
-        "Through speech, music, literature and movies... \n"
-        "what we've seen, heard, felt anger, joy and sorrow, \n"
-        "these are the things I will pass on. \n"
-        "That's what I live for. \n"
-        "We need to pass the torch, and let our \n"
-        "children read our messy and sad history by its light. \n"
-        "We have the magic of the digital age to do that \n"
-        "with. The human race will probably come to an end \n"
-        "some time, and new species may rule over this \n"
-        "planet. Earth may not be forever, but we still have \n"
-        "the responsibility to leave what trace of life we \n"
-        "can. Building the future and keeping the past alive \n"
-        "are one in the same thing.";
+    const char *message = "Life isn't just about passing on your genes. \n"
+	"We can leave behind much more than just DNA. \n"
+	"Through speech, music, literature and movies... \n"
+	"what we've seen, heard, felt anger, joy and sorrow, \n"
+	"these are the things I will pass on. \n"
+	"That's what I live for. \n"
+	"We need to pass the torch, and let our \n"
+	"children read our messy and sad history by its light. \n"
+	"We have the magic of the digital age to do that \n"
+	"with. The human race will probably come to an end \n"
+	"some time, and new species may rule over this \n"
+	"planet. Earth may not be forever, but we still have \n"
+	"the responsibility to leave what trace of life we \n"
+	"can. Building the future and keeping the past alive \n"
+	"are one in the same thing.";
 
-    Camera3D camera = {0};
-    camera.position = (Vector3){ 0.0, 2.0, 4.0f };
-    camera.target = (Vector3){ 0.0, 2.0, 0.0 };
-    camera.up = (Vector3){ 0.0, 1.0, 0.0 };
-    camera.fovy = 45.0;
-    camera.projection = CAMERA_PERSPECTIVE;
+    CameraGame camera_game = NewCameraGamePerspective();
+    CameraGame last_camera_gamer = NewCameraGameOrtho();
 
     int size = 4;
     Model wall = LoadModel("models/medieval01/wall.obj");
+    Model wallFortified = LoadModel("models/medieval01/wallFortified.obj");
+    Model wallFortifiedGate = LoadModel("models/medieval01/wallFortified_gate.obj");
+    Model tower = LoadModel("models/medieval01/tower.obj");
     Model floor = LoadModel("models/medieval01/floor.obj");
     Model column = LoadModel("models/medieval01/column.obj");
 
     GenTextureMipmaps(&wall.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
+    GenTextureMipmaps(&wallFortified.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
+    GenTextureMipmaps(&wallFortifiedGate.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
+    GenTextureMipmaps(&tower.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
     GenTextureMipmaps(&floor.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
     GenTextureMipmaps(&column.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
 
     SetTextureFilter(wall.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_ANISOTROPIC_16X);
+    SetTextureFilter(wallFortified.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_ANISOTROPIC_16X);
+    SetTextureFilter(wallFortifiedGate.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_ANISOTROPIC_16X);
+    SetTextureFilter(tower.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_ANISOTROPIC_16X);
     SetTextureFilter(floor.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_ANISOTROPIC_16X);
 
     // wall.materials[0].shader = shader;
@@ -173,93 +265,117 @@ int main(void) {
     // column.materials[0].shader = shader;
     // light.materials[0].shader = shader;
 
-    Vector3 cubeSize = { 2.0f, 2.0f, 2.0f };
-    Model cube = LoadModelFromMesh(GenMeshCube(cubeSize.x, cubeSize.y, cubeSize.z));
-    // cube.materials[0].shader = shader;
-
-    Texture2D texture = LoadTexture("textures/wall.png");
-    SetMaterialTexture(&cube.materials[0], MATERIAL_MAP_DIFFUSE, texture); // Set model material map texture
-
     Texture2D cross = LoadTexture("textures/crosshair.png");
 
-    Ray ray = { 0 }; // Picking line ray
-    int velocity = 80;
+    // Ray ray = { 0 }; // Picking line ray
+    // int velocity = 80;
 
     int monitor = GetCurrentMonitor();
     int fps = GetMonitorRefreshRate(monitor);
     if (fps_cap) {
-        SetTargetFPS(fps);
+	SetTargetFPS(fps);
     } else {
-        SetTargetFPS(0);
+	SetTargetFPS(0);
     }
 
     Texture heroin = LoadTexture("textures/heroin.png");
     Grid map = grid_load("src/map_01");
 
     while (!WindowShouldClose()) {
-        if (IsKeyPressed(KEY_LEFT_SHIFT)) {
-            show_mouse = !show_mouse;
-        }
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            UpdateCamera(&camera, camera_mode);
-            // UpdateCameraProFPS(&camera, GetFrameTime(), velocity);
-            HideCursor();
-            SetMousePosition(W / 2, H / 2);
-        }
-        if (IsKeyUp(KEY_LEFT_SHIFT)) {
-            ShowCursor();
-        }
+	if (IsKeyPressed(KEY_Z)){
+	    CameraGame temp;
+	    if (camera_game.active_proj == CAMERA_ORTHOGRAPHIC){
+		temp = camera_game;
+		UpdateCameraToPerspective(&camera_game, last_camera_gamer.camera);
+		last_camera_gamer = temp;
+	    } else {
+		temp = camera_game;
+		UpdateCameraToOrtho(&camera_game, last_camera_gamer.camera);
+		last_camera_gamer = temp;
+	    }
+	}
 
-        // Pack entity + colisions settings;
-        ray = GetMouseRay(GetMousePosition(), camera);
+	if (IsKeyPressed(KEY_LEFT_SHIFT)) {
+	    show_mouse = !show_mouse;
+	}
+	if (IsKeyDown(KEY_LEFT_SHIFT)) {
+	    UpdateCamera(&camera_game.camera, camera_game.active_mode);
+	    // UpdateCameraProFPS(&camera, GetFrameTime(), velocity);
+	    HideCursor();
+	    SetMousePosition(W / 2, H / 2);
+	}
+	if (IsKeyUp(KEY_LEFT_SHIFT)) {
+	    ShowCursor();
+	}
 
-        BeginDrawing();
-        ClearBackground(BLACK);
-        BeginMode3D(camera);
-        // map
-        for (size_t x = 0; x < map.rows; x++){
-            for (size_t y = 0; y < map.cols; y++){
-                Cel cel = map.cels[x][y];
-                if (cel.raw_value == 0){
-                    DrawModel(floor,(Vector3){x * size, 0.0f, y * size}, size, WHITE);
-                } else if (cel.raw_value == 6) {
-                    // column need a floor
-                    DrawModel(floor,(Vector3){x * size, 0.0f, y * size}, size, WHITE);
-                    DrawModel(column,(Vector3){x * size, 0.2f, y * size}, size, WHITE);
-                } else {
-                    DrawModel(wall,(Vector3){x * size, 0.0f, y * size}, size, WHITE);
-                }
-            }
-        }
+	// Pack entity + colisions settings;
+	// ray = GetMouseRay(GetMousePosition(), camera_game.camera);
 
-        // billboard
-        DrawBillboardPro(camera, heroin, (Rectangle){0, 0, heroin.width, heroin.height}, (Vector3){37.0f, 2.0f, 13.0f}, (Vector3){0.0f, 1.0f, 0.0f}, (Vector2){4.0f, 4.0f}, (Vector2){0}, 0.0f, WHITE);
-        EndMode3D();
+	BeginDrawing();
+	ClearBackground(BLACK);
+	BeginMode3D(camera_game.camera);
+	// map
+	for (size_t x = 0; x < map.rows; x++){
+	    for (size_t y = 0; y < map.cols; y++){
+		Cel cel = map.cels[x][y];
+		if (cel.raw_value == 0){
+		    DrawModel(floor, (Vector3){x * size, -0.2f, y * size}, size, WHITE);
+		} else if (cel.raw_value == 6) {
+		    // column need a floor
+		    DrawModel(floor, (Vector3){x * size, -0.2f, y * size}, size, WHITE);
+		    DrawModel(column, (Vector3){x * size, 0.2f, y * size}, size, WHITE);
+		} else if (cel.raw_value == 2) {
+		    DrawModel(wallFortified, (Vector3){x * size, 0.0f, y * size}, size, WHITE);
+		} else if (cel.raw_value == 3){
+		    DrawModel(floor,(Vector3){x * size, -0.2f, y * size}, size, WHITE);
+		    DrawModel(wallFortifiedGate, (Vector3){x * size, 0.0f, y * size}, size, WHITE);
+		} else if (cel.raw_value == 4){
+		    DrawModel(floor,(Vector3){x * size, -0.2f, y * size}, size, WHITE);
+		    DrawModel(tower, (Vector3){x * size, 0.0f, y * size}, size, WHITE);
+		} else {
+		    DrawModel(wall, (Vector3){x * size, 0.0f, y * size}, size, WHITE);
+		}
+	    }
+	}
 
-        // 2d draw
-        if (IsKeyDown(KEY_SPACE) == 1) {
-            GuiGameTextBox("Space pressed", "Space pressed", (Vector2){ 30, 740} , fonts[1], BLANK, MAGENTA);
-            p += 4;
-        }else{
-            p += 1;
-        }
+	// billboard
+	DrawBillboardPro(camera_game.camera, heroin,
+			 (Rectangle){0, 0, heroin.width, heroin.height},
+			 (Vector3){37.0f, 2.0f, 13.0f},
+			 (Vector3){0.0f, 1.0f, 0.0f},
+			 (Vector2){4.0f, 4.0f},
+			 (Vector2){0}, 0.0f, WHITE);
+	EndMode3D();
 
-        GuiGameTextBox(TextSubtext(message, 0, p), message, (Vector2){30, 30}, fonts[1], BLUE, WHITE);
-        if (GuiGameButton("Click me!!", fonts[1], (Vector2) {30, 700}, GOLD, BLACK)){
-            p = 0;
-        }
-        GuiGameTextBox(TextFormat("Pos: %.1f %.1f %.1f", camera.position.x, camera.position.y, camera.position.z), "Pos: xx.x xx.x x1x.x", (Vector2){30, 640}, fonts[1], DARKGREEN, WHITE);
-        // GuiGameSliderBar((Rectangle){ 30, 730, 80, 10 }, "0", "4.0", &sphere_r, 0.0, 4.0);
+	// 2d draw
+	if (IsKeyDown(KEY_SPACE) == 1) {
+	    GuiGameTextBox("Space pressed", (Vector2){ 30, 740} , fonts[1], BLANK, MAGENTA);
+	    p += 4;
+	}else{
+	    p += 1;
+	}
 
-        DrawFPS(0, 0);
-        DrawTexture(cross, W / 2 - cross.width / 2, H / 2 - cross.height / 2, WHITE); // cross
-        EndDrawing();
+	GuiGameSubTextBox(message, p, (Vector2){30, 30}, fonts[1], BLUE, WHITE);
+	if (GuiGameButton("Click me!!", fonts[1], (Vector2) {30, 700}, GOLD, BLACK)){
+	    p = 0;
+	}
+
+	// GuiGameSliderBar((Rectangle){ 30, 730, 80, 10 }, "0", "4.0", &sphere_r, 0.0, 4.0);
+
+
+	DebugCameraGame(&camera_game, (Vector2){30, 400});
+
+	DrawFPS(0, 0);
+	if (camera_game.active_proj == CAMERA_PERSPECTIVE){
+	    DrawTexture(cross, W / 2 - cross.width / 2, H / 2 - cross.height / 2, WHITE); // cross
+	}
+	EndDrawing();
 
     }
 
     // shutdown
     for (size_t i = 0; i < FONTS; i++) {
-        UnloadFont(fonts[i].font);
+	UnloadFont(fonts[i].font);
     }
     CloseWindow();
 
