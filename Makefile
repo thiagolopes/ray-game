@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -g
-LDFLAGS=-lraylib -lGL -lm -lpthread -ldl -lrt
+LDFLAGS=-lGL -lm -lpthread -ldl -lrt raylib/lib/libraylib.a
 SRC_DIR=src
 BUILD_DIR=build
 TARGET=raylon
