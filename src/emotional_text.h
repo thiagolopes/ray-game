@@ -1,7 +1,6 @@
 // from https://github.com/NightenDushi/Raylib_DrawTextStyle/blob/main/DrawTextStyle.h
 // Alternative DrawText() function to use with raylib
 // Created by Nighten, using the code from the Raylib source code written by Ramon Santamaria (@raysan5)
-// Re-writed by me aka Thiago Lopes thiagolopes at protonmail dot com
 
 /*
   Features:
